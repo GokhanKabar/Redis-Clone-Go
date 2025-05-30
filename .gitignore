@@ -1,0 +1,25 @@
+# Binaries
+bin/
+redis-server
+redis-cli
+
+# Database files
+dump.rdb
+appendonly.aof
+redis.conf.bak
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
