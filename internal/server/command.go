@@ -1,6 +1,7 @@
 package server
 
 import (
+	"strconv"
 	"strings"
 
 	"redis-clone/internal/protocol"
@@ -38,6 +39,14 @@ func (s *Server) executeCommand(cmd *protocol.RESPValue) *protocol.RESPValue {
 		return s.handleGet(args)
 	case "DEL":
 		return s.handleDel(args)
+	case "EXISTS":
+		return s.handleExists(args)
+	case "EXPIRE":
+		return s.handleExpire(args)
+	case "TTL":
+		return s.handleTTL(args)
+	case "KEYS":
+		return s.handleKeys(args)
 	default:
 		return &protocol.RESPValue{
 			Type: protocol.Error,
@@ -125,5 +134,90 @@ func (s *Server) handleDel(args []string) *protocol.RESPValue {
 	return &protocol.RESPValue{
 		Type: protocol.Integer,
 		Num:  int64(deleted),
+	}
+}
+
+func (s *Server) handleExists(args []string) *protocol.RESPValue {
+	if len(args) == 0 {
+		return &protocol.RESPValue{
+			Type: protocol.Error,
+			Str:  "ERR wrong number of arguments for 'exists' command",
+		}
+	}
+
+	count := 0
+	for _, key := range args {
+		if s.db.Exists(key) {
+			count++
+		}
+	}
+
+	return &protocol.RESPValue{
+		Type: protocol.Integer,
+		Num:  int64(count),
+	}
+}
+
+func (s *Server) handleExpire(args []string) *protocol.RESPValue {
+	if len(args) != 2 {
+		return &protocol.RESPValue{
+			Type: protocol.Error,
+			Str:  "ERR wrong number of arguments for 'expire' command",
+		}
+	}
+
+	key := args[0]
+	seconds, err := strconv.Atoi(args[1])
+	if err != nil {
+		return &protocol.RESPValue{
+			Type: protocol.Error,
+			Str:  "ERR value is not an integer or out of range",
+		}
+	}
+
+	if s.db.Expire(key, seconds) {
+		return &protocol.RESPValue{
+			Type: protocol.Integer,
+			Num:  1,
+		}
+	}
+
+	return &protocol.RESPValue{
+		Type: protocol.Integer,
+		Num:  0,
+	}
+}
+
+func (s *Server) handleTTL(args []string) *protocol.RESPValue {
+	if len(args) != 1 {
+		return &protocol.RESPValue{
+			Type: protocol.Error,
+			Str:  "ERR wrong number of arguments for 'ttl' command",
+		}
+	}
+
+	key := args[0]
+	ttl := s.db.TTL(key)
+
+	return &protocol.RESPValue{
+		Type: protocol.Integer,
+		Num:  ttl,
+	}
+}
+
+func (s *Server) handleKeys(args []string) *protocol.RESPValue {
+	keys := s.db.Keys()
+	result := make([]*protocol.RESPValue, len(keys))
+
+	for i, key := range keys {
+		result[i] = &protocol.RESPValue{
+			Type: protocol.BulkString,
+			Str:  key,
+		}
+	}
+
+	return &protocol.RESPValue{
+		Type:  protocol.Array,
+		Array: result,
 	}
 }
